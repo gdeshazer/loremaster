@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"strings"
+
 	"github.com/gdeshazer/loremaster/internal/config"
 	"github.com/gdeshazer/loremaster/internal/db"
 	"github.com/spf13/cobra"
@@ -96,10 +98,73 @@ and mcp.json into the current directory.`,
 			return fmt.Errorf("writing mcp.json: %w", err)
 		}
 		fmt.Println("Wrote mcp.json")
-		fmt.Printf("\nTo use with Claude Code, add the contents of mcp.json to your Claude Code MCP settings.\n")
-		fmt.Printf("Then run: loremaster index .\n")
+
+		// Write or append to CLAUDE.md with loremaster tool guidance.
+		if err := writeCLAUDEMD(cwd, slug, name); err != nil {
+			return fmt.Errorf("writing CLAUDE.md: %w", err)
+		}
+		fmt.Println("Wrote CLAUDE.md (loremaster tool guidance)")
+
+		fmt.Printf("\nNext steps:\n")
+		fmt.Printf("  1. Add mcp.json to your Claude Code MCP settings\n")
+		fmt.Printf("  2. loremaster index .\n")
 		return nil
 	},
+}
+
+// claudeMDMarker is written into CLAUDE.md so re-running init doesn't duplicate the section.
+const claudeMDMarker = "<!-- loremaster -->"
+
+func writeCLAUDEMD(dir, slug, projectName string) error {
+	section := fmt.Sprintf(`%s
+## Loremaster — Story Knowledge Base
+
+This project (%s) uses **loremaster** for semantic and full-text search over story files.
+The MCP server exposes the following tools (all require ` + "`" + `"project": "%s"` + "`" + `):
+
+| Tool | When to use |
+|---|---|
+| ` + "`" + `hybrid_search` + "`" + ` | **Default.** Combines semantic + keyword results via RRF. Use for most queries. |
+| ` + "`" + `semantic_search` + "`" + ` | Conceptual or thematic questions ("scenes about betrayal", "magic system rules"). |
+| ` + "`" + `keyword_search` + "`" + ` | Exact names, places, or specific phrases ("Roland", "Dark Tower", "Affiliation"). |
+| ` + "`" + `get_document` + "`" + ` | Retrieve the full contents of a specific file by its path. |
+| ` + "`" + `list_documents` + "`" + ` | Browse all indexed files (useful when you need to know what exists). |
+| ` + "`" + `list_projects` + "`" + ` | List all projects in the knowledge base. |
+
+### Tips
+
+- Always pass ` + "`" + `"project": "%s"` + "`" + ` to scope results to this project.
+- The ` + "`" + `filter` + "`" + ` parameter accepts JSONB metadata from frontmatter:
+  ` + "`" + `{"characters": "Roland"}` + "`" + ` — match files where the ` + "`" + `characters` + "`" + ` frontmatter field contains "Roland"
+  ` + "`" + `{"location": "Forest", "tags": "magic"}` + "`" + ` — AND across multiple keys
+- Use ` + "`" + `list_documents` + "`" + ` first if you're unsure what files exist, then ` + "`" + `get_document` + "`" + ` to read one in full.
+- Re-index after editing files: ` + "`" + `loremaster index .` + "`" + `
+`, claudeMDMarker, projectName, slug, slug)
+
+	claudePath := filepath.Join(dir, "CLAUDE.md")
+
+	existing, err := os.ReadFile(claudePath)
+	if err == nil {
+		// File exists — only append if our section isn't already there.
+		if !containsMarker(existing, claudeMDMarker) {
+			f, err := os.OpenFile(claudePath, os.O_APPEND|os.O_WRONLY, 0644)
+			if err != nil {
+				return err
+			}
+			defer f.Close()
+			_, err = fmt.Fprintf(f, "\n%s", section)
+			return err
+		}
+		// Already present — nothing to do.
+		return nil
+	}
+
+	// No CLAUDE.md yet — create it.
+	return os.WriteFile(claudePath, []byte(section), 0644)
+}
+
+func containsMarker(data []byte, marker string) bool {
+	return strings.Contains(string(data), marker)
 }
 
 func init() {

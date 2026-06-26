@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/gdeshazer/loremaster/internal/config"
@@ -72,5 +73,76 @@ func TestInitWritesConfigFiles(t *testing.T) {
 	}
 	if _, ok := lm["command"]; !ok {
 		t.Error("mcp.json missing command field")
+	}
+}
+
+func TestWriteCLAUDEMD_createsFile(t *testing.T) {
+	dir := t.TempDir()
+	if err := writeCLAUDEMD(dir, "my-novel", "My Novel"); err != nil {
+		t.Fatalf("writeCLAUDEMD: %v", err)
+	}
+
+	data, err := os.ReadFile(filepath.Join(dir, "CLAUDE.md"))
+	if err != nil {
+		t.Fatalf("read CLAUDE.md: %v", err)
+	}
+	content := string(data)
+
+	if !strings.Contains(content, claudeMDMarker) {
+		t.Error("CLAUDE.md missing loremaster marker")
+	}
+	if !strings.Contains(content, "my-novel") {
+		t.Error("CLAUDE.md missing project slug")
+	}
+	if !strings.Contains(content, "hybrid_search") {
+		t.Error("CLAUDE.md missing hybrid_search tool entry")
+	}
+	if !strings.Contains(content, "semantic_search") {
+		t.Error("CLAUDE.md missing semantic_search tool entry")
+	}
+	if !strings.Contains(content, "keyword_search") {
+		t.Error("CLAUDE.md missing keyword_search tool entry")
+	}
+}
+
+func TestWriteCLAUDEMD_appendsToExisting(t *testing.T) {
+	dir := t.TempDir()
+	existing := "# My Story\n\nThis is my project.\n"
+	claudePath := filepath.Join(dir, "CLAUDE.md")
+	os.WriteFile(claudePath, []byte(existing), 0644)
+
+	if err := writeCLAUDEMD(dir, "my-novel", "My Novel"); err != nil {
+		t.Fatalf("writeCLAUDEMD: %v", err)
+	}
+
+	data, err := os.ReadFile(claudePath)
+	if err != nil {
+		t.Fatalf("read CLAUDE.md: %v", err)
+	}
+	content := string(data)
+
+	if !strings.HasPrefix(content, existing) {
+		t.Error("existing CLAUDE.md content was not preserved at the top")
+	}
+	if !strings.Contains(content, claudeMDMarker) {
+		t.Error("loremaster section was not appended")
+	}
+}
+
+func TestWriteCLAUDEMD_idempotent(t *testing.T) {
+	dir := t.TempDir()
+
+	// Run twice — should not duplicate the section.
+	if err := writeCLAUDEMD(dir, "my-novel", "My Novel"); err != nil {
+		t.Fatalf("first write: %v", err)
+	}
+	if err := writeCLAUDEMD(dir, "my-novel", "My Novel"); err != nil {
+		t.Fatalf("second write: %v", err)
+	}
+
+	data, _ := os.ReadFile(filepath.Join(dir, "CLAUDE.md"))
+	count := strings.Count(string(data), claudeMDMarker)
+	if count != 1 {
+		t.Errorf("expected marker to appear exactly once, got %d", count)
 	}
 }
