@@ -1,0 +1,31 @@
+name: loremaster
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_USER: loremaster
+      POSTGRES_PASSWORD: loremaster
+      POSTGRES_DB: loremaster
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U loremaster"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    # After first `podman compose up`, pull the embedding model:
+    #   podman exec loremaster-ollama-1 ollama pull nomic-embed-text
+
+volumes:
+  postgres_data:
+  ollama_data:
