@@ -14,11 +14,20 @@ import (
 var projectsCmd = &cobra.Command{
 	Use:   "projects",
 	Short: "Manage loremaster projects",
+	Long: `Commands for listing, inspecting, and deleting loremaster projects.
+
+Each project is an independent namespace in the database. Documents from
+different projects never appear in each other's search results. A project
+is created by 'loremaster init' and populated by 'loremaster index'.`,
+	Example: `  loremaster projects list
+  loremaster projects describe my-novel
+  loremaster projects delete old-draft`,
 }
 
 var projectsListCmd = &cobra.Command{
-	Use:   "list",
-	Short: "List all projects with doc counts and descriptions",
+	Use:     "list",
+	Short:   "List all projects with doc counts and descriptions",
+	Example: "  loremaster projects list",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
 		store, pool, err := openStore(ctx)
@@ -44,7 +53,11 @@ var projectsListCmd = &cobra.Command{
 var projectsDeleteCmd = &cobra.Command{
 	Use:   "delete [slug]",
 	Short: "Delete a project and all its documents",
-	Args:  cobra.ExactArgs(1),
+	Long: `Permanently removes the project record and all its indexed document
+chunks (via CASCADE). This cannot be undone. Re-run 'loremaster init' and
+'loremaster index' to rebuild the project from scratch.`,
+	Example: "  loremaster projects delete old-draft",
+	Args:    cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
 		store, pool, err := openStore(ctx)
@@ -63,9 +76,10 @@ var projectsDeleteCmd = &cobra.Command{
 }
 
 var projectsDescribeCmd = &cobra.Command{
-	Use:   "describe [slug]",
-	Short: "Show metadata for a project",
-	Args:  cobra.ExactArgs(1),
+	Use:     "describe [slug]",
+	Short:   "Show metadata for a project",
+	Example: "  loremaster projects describe my-novel",
+	Args:    cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
 		store, pool, err := openStore(ctx)

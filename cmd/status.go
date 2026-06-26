@@ -15,7 +15,14 @@ import (
 var statusCmd = &cobra.Command{
 	Use:   "status",
 	Short: "Show index status for the current project",
-	Long:  "Displays document count, last indexed time, and DB/Ollama connectivity for the current project.",
+	Long: `Displays the number of indexed chunks, DB connectivity, and Ollama
+reachability for the current project.
+
+The project is resolved from loremaster.json in the current directory tree,
+or overridden with --project. Useful for verifying the infrastructure is up
+and confirming that indexing has run successfully.`,
+	Example: `  loremaster status
+  loremaster status --project my-novel`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
 

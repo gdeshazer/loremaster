@@ -16,8 +16,29 @@ import (
 var searchCmd = &cobra.Command{
 	Use:   "search [query]",
 	Short: "Search the knowledge base",
-	Long:  "Runs a hybrid semantic + keyword search scoped to the current project.",
-	Args:  cobra.ExactArgs(1),
+	Long: `Runs a hybrid search (semantic + keyword, merged via Reciprocal Rank Fusion)
+scoped to the current project and prints results as JSON to stdout.
+
+The project is resolved from loremaster.json in the current directory tree,
+or overridden with --project. The embedding model used for the query vector
+is taken from loremaster.json (embedding_model field) or the global default.
+
+Output fields per result:
+  file_path    Relative path of the source markdown file
+  chunk_index  Which chunk within the file (0-based)
+  title        Title from frontmatter or first heading
+  content      The matched text excerpt
+  score        RRF relevance score (higher = more relevant)
+  metadata     Frontmatter fields (characters, location, tags, etc.)`,
+	Example: `  # Basic search
+  loremaster search "how does the magic system work"
+
+  # Limit results
+  loremaster search "Roland's backstory" --limit 10
+
+  # Search a specific project
+  loremaster search "the dark tower" --project my-novel`,
+	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
 		query := args[0]

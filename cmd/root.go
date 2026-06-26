@@ -11,8 +11,36 @@ import (
 var rootCmd = &cobra.Command{
 	Use:   "loremaster",
 	Short: "LLM-queryable knowledge base for story files",
-	Long: `Loremaster indexes your story's markdown files and exposes
-semantic and full-text search via MCP (for Claude) and CLI.`,
+	Long: `Loremaster indexes your story's markdown files into a PostgreSQL
+database (pgvector + full-text search) and exposes semantic and keyword
+search via an MCP server for Claude, as well as a standalone CLI.
+
+Quick start:
+  1. Start the infrastructure:
+       podman compose up -d
+       podman exec <ollama-container> ollama pull nomic-embed-text
+
+  2. Set required environment variables (or copy .env.example to .env):
+       export LOREMASTER_DB_URL="postgres://loremaster:loremaster@localhost:5432/loremaster?sslmode=disable"
+       export LOREMASTER_OLLAMA_URL="http://localhost:11434"
+
+  3. Initialize a project in your story directory:
+       cd ~/my-story && loremaster init
+
+  4. Index your markdown files:
+       loremaster index .
+
+  5. Search from the CLI:
+       loremaster search "how does the magic system work"
+
+  6. Add mcp.json to Claude Code MCP settings to search from Claude.
+
+Environment variables:
+  LOREMASTER_DB_URL        PostgreSQL connection string (required)
+  LOREMASTER_OLLAMA_URL    Ollama base URL (default: http://localhost:11434)
+  LOREMASTER_OLLAMA_MODEL  Embedding model name (default: nomic-embed-text)
+  LOREMASTER_EMBED_DIMS    Embedding dimensions (default: 768)
+  LOREMASTER_PROJECT       Project slug (overridden by --project flag)`,
 }
 
 func Execute() {

@@ -16,8 +16,28 @@ import (
 var indexCmd = &cobra.Command{
 	Use:   "index [path]",
 	Short: "Index markdown files into the knowledge base",
-	Long:  "Walks [path] for .md files and upserts them into the project's search index.",
-	Args:  cobra.MaximumNArgs(1),
+	Long: `Walks [path] recursively for .md files and upserts each one into the
+project's search index. Defaults to the current directory if no path is given.
+
+Each file is parsed for YAML frontmatter and plaintext content, split into
+overlapping chunks (~300 words, 40-word overlap), embedded via Ollama, and
+stored in PostgreSQL (pgvector for semantic search, tsvector for keyword search).
+
+Re-running index on already-indexed files is safe — chunks are upserted,
+not duplicated. Files deleted from disk are not automatically removed from
+the index; use 'loremaster projects delete' and re-index to fully reset.
+
+Reads exclude glob patterns from loremaster.json (e.g. "drafts/**", "*.bak.md").
+The project is resolved from loremaster.json in the current directory tree.`,
+	Example: `  # Index the current directory
+  loremaster index .
+
+  # Index a specific subdirectory
+  loremaster index ./chapters
+
+  # Override the project slug
+  loremaster index . --project my-novel`,
+	Args: cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
 

@@ -17,7 +17,28 @@ import (
 var serveCmd = &cobra.Command{
 	Use:   "serve",
 	Short: "Start the MCP stdio server",
-	Long:  "Starts loremaster as an MCP server over stdio, for use with Claude Desktop or Claude Code.",
+	Long: `Starts loremaster as an MCP server communicating over stdin/stdout,
+following the Model Context Protocol (MCP) specification.
+
+This command is typically launched automatically by the MCP host (Claude
+Desktop, Claude Code, Cursor) using the config in mcp.json — you do not
+usually run it directly. The binary path and environment variables in mcp.json
+are passed through from 'loremaster init'.
+
+Tools exposed to the LLM:
+  hybrid_search    Semantic + keyword search merged via RRF (best default)
+  semantic_search  Vector similarity search (conceptual/thematic queries)
+  keyword_search   Full-text search (exact names, phrases, boolean operators)
+  get_document     Retrieve full content of a file by path
+  list_documents   List all indexed files in a project
+  list_projects    List all projects with doc counts
+
+All search tools require a "project" parameter matching the slug in loremaster.json.`,
+	Example: `  # Start the MCP server (usually called by the MCP host, not directly)
+  loremaster serve
+
+  # With explicit DB and Ollama settings
+  LOREMASTER_DB_URL="postgres://..." loremaster serve`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
 

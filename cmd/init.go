@@ -18,8 +18,28 @@ import (
 var initCmd = &cobra.Command{
 	Use:   "init",
 	Short: "Initialize a new project in the current directory",
-	Long: `Creates a project record in the database and writes loremaster.json
-and mcp.json into the current directory.`,
+	Long: `Creates a project record in the database and writes three files into
+the current directory:
+
+  loremaster.json   Project-local config (slug, embedding model, exclude globs).
+                    Loremaster walks up the directory tree to find this file,
+                    similar to how git finds .git.
+
+  mcp.json          Ready-to-use MCP server config block. Add its contents to
+                    your Claude Code or Claude Desktop MCP settings to expose
+                    loremaster tools to Claude.
+
+  CLAUDE.md         Tool guidance for Claude — which search tool to use when,
+                    how to pass the project slug, and filter parameter examples.
+                    Appended to an existing CLAUDE.md if one already exists.
+
+The project slug defaults to the current directory name and must be unique
+across all loremaster projects in the database.`,
+	Example: `  # Initialize with defaults (slug = current directory name)
+  cd ~/stories/my-novel && loremaster init
+
+  # Specify slug, name, and description explicitly
+  loremaster init --slug my-novel --name "My Novel" --description "A dark fantasy epic"`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
 
