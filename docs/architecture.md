@@ -83,7 +83,10 @@ Responsible for turning files into chunked, embeddable records:
 
 1. **Walk** the target directory tree, honoring `exclude` globs.
 2. **Parse** each `.md` file with `yuin/goldmark`, extracting YAML
-   frontmatter and the rendered text body.
+   frontmatter and the rendered text body. Title and tags are derived
+   automatically when frontmatter omits them: the title falls back to the first
+   H1 heading then the filename stem; tags fall back to the directory path
+   components (e.g. `lore/magic/` → `lore, magic`).
 3. **Chunk** the body into ~400-token sliding windows with 50-token overlap,
    preferring sentence boundaries.
 4. Hand each chunk to the embed layer, then persist via the DB store.

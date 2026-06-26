@@ -79,6 +79,11 @@ loremaster index .
 
 Re-indexing is idempotent — files are upserted by `(project, file_path, chunk_index)`.
 
+Frontmatter is optional. If a file has no `title:` key, the title is taken from
+the first H1 heading, then from the filename stem. If a file has no `tags:` key,
+tags are derived from its directory path (e.g. `lore/magic/magic-system.md` gets
+tags `lore` and `magic` automatically).
+
 ### 6. Search from the CLI
 
 ```sh

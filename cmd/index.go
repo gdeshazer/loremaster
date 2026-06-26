@@ -108,7 +108,7 @@ The project is resolved from loremaster.json in the current directory tree.`,
 				continue
 			}
 
-			doc, err := ingest.Parse(src)
+			doc, err := ingest.Parse(src, path)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "skip %s: parse error: %v\n", path, err)
 				skipped++

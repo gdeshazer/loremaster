@@ -2,6 +2,7 @@ package ingest
 
 import (
 	"bytes"
+	"path/filepath"
 	"strings"
 
 	"github.com/yuin/goldmark"
@@ -31,7 +32,10 @@ var md = goldmark.New(
 )
 
 // Parse converts a markdown file's content into a ParsedDoc.
-func Parse(src []byte) (*ParsedDoc, error) {
+// filePath is optional — pass an empty string when no path is available.
+// When provided, it is used as a fallback title source (the filename stem) and
+// to derive tags from directory components when the frontmatter has none.
+func Parse(src []byte, filePath string) (*ParsedDoc, error) {
 	ctx := parser.NewContext()
 	var buf bytes.Buffer
 	if err := md.Convert(src, &buf, parser.WithContext(ctx)); err != nil {
@@ -45,7 +49,16 @@ func Parse(src []byte) (*ParsedDoc, error) {
 
 	title := meta_["title"]
 	if title == "" {
-		title = extractFirstHeading(plaintext)
+		title = extractH1FromSource(src)
+	}
+	if title == "" && filePath != "" {
+		title = titleFromFilename(filePath)
+	}
+
+	if meta_["tags"] == "" && filePath != "" {
+		if derived := tagsFromPath(filePath); len(derived) > 0 {
+			meta_["tags"] = strings.Join(derived, ", ")
+		}
 	}
 
 	return &ParsedDoc{
@@ -105,16 +118,41 @@ func stripHTML(s string) string {
 	return strings.Join(strings.Fields(b.String()), " ")
 }
 
-// extractFirstHeading returns the text of the first line that looks like a heading.
-func extractFirstHeading(plaintext string) string {
-	for _, line := range strings.SplitN(plaintext, "\n", 20) {
-		line = strings.TrimSpace(line)
-		if line != "" {
-			// Return the first non-empty line as the implicit title.
-			return line
+// extractH1FromSource scans raw markdown bytes for the first ATX H1 heading (`# ...`)
+// and returns its text content.
+func extractH1FromSource(src []byte) string {
+	for _, line := range strings.SplitN(string(src), "\n", 50) {
+		trimmed := strings.TrimRight(line, "\r")
+		if strings.HasPrefix(trimmed, "# ") {
+			return strings.TrimSpace(trimmed[2:])
 		}
 	}
 	return ""
+}
+
+// titleFromFilename derives a human-readable title from a file path by taking
+// the base name, stripping the extension, and replacing hyphens/underscores with spaces.
+func titleFromFilename(filePath string) string {
+	base := filepath.Base(filePath)
+	stem := strings.TrimSuffix(base, filepath.Ext(base))
+	return strings.ReplaceAll(strings.ReplaceAll(stem, "-", " "), "_", " ")
+}
+
+// tagsFromPath returns the directory components of filePath as tag strings,
+// excluding the filename itself. Empty or dot segments are omitted.
+func tagsFromPath(filePath string) []string {
+	dir := filepath.Dir(filePath)
+	if dir == "." || dir == "" {
+		return nil
+	}
+	parts := strings.Split(filepath.ToSlash(dir), "/")
+	tags := make([]string, 0, len(parts))
+	for _, p := range parts {
+		if p != "" && p != "." {
+			tags = append(tags, p)
+		}
+	}
+	return tags
 }
 
 // needed to avoid "declared and not used" — goldmark/text is used by the parser

@@ -184,6 +184,34 @@ restricting a search to chunks where `characters` contains `"Aria"`. See
 [mcp-tools.md](./mcp-tools.md) for filter syntax. Unrecognized frontmatter keys
 are ignored (not stored), keeping `metadata` predictable for filtering.
 
+### Title and tag fallbacks
+
+Frontmatter is optional. When fields are absent, the parser fills them in from
+the file itself:
+
+**Title** (highest priority wins):
+1. `title:` frontmatter key
+2. First ATX H1 heading in the file (`# Heading text`)
+3. Filename stem with hyphens and underscores replaced by spaces
+
+**Tags** — if `tags:` is not present in the frontmatter, the directory
+components of the file path are used instead. A file at
+`lore/magic/magic-system.md` automatically receives the tags `lore` and
+`magic`. Frontmatter tags are never merged with path-derived tags; if the file
+declares `tags:`, those are used as-is.
+
+Example — no frontmatter at all:
+
+```
+lore/magic/magic-system.md
+────────────────────────────
+# Runic Magic
+
+The runic system was developed by the ancient Vel...
+```
+
+Result: `title = "Runic Magic"`, `metadata.tags = "lore, magic"`.
+
 ---
 
 ## 6. The generated `tsvector` column vs. application-side FTS
