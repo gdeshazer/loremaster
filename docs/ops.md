@@ -55,16 +55,27 @@ podman compose exec ollama ollama pull nomic-embed-text
 (If you run Ollama natively instead of in a container, just
 `ollama pull nomic-embed-text`.)
 
-### 2.3 Set environment variables
+### 2.3 Configure connection URLs
 
-Loremaster needs to know how to reach Postgres and Ollama. The defaults below
-match the Compose file; export overrides only if you changed ports or
-credentials.
+Loremaster needs to know how to reach Postgres and Ollama. You can supply these
+in either `loremaster.json` (preferred for project-local use) or environment
+variables (global fallback).
 
+**Option A — embed in `loremaster.json`** (no env vars needed):
 ```bash
-export LOREMASTER_DATABASE_URL="postgres://loremaster:loremaster@localhost:5432/loremaster?sslmode=disable"
+loremaster init \
+  --db-url "postgres://loremaster:loremaster@localhost:5432/loremaster?sslmode=disable" \
+  --ollama-url "http://localhost:11434"
+```
+This writes `db_url` and `ollama_url` directly into the generated
+`loremaster.json` so any command run from inside the project directory works
+without environment variables being set.
+
+**Option B — environment variables** (global, useful for CI or shared shells):
+```bash
+export LOREMASTER_DB_URL="postgres://loremaster:loremaster@localhost:5432/loremaster?sslmode=disable"
 export LOREMASTER_OLLAMA_URL="http://localhost:11434"
-export LOREMASTER_EMBEDDING_MODEL="nomic-embed-text"
+export LOREMASTER_OLLAMA_MODEL="nomic-embed-text"
 ```
 
 ### 2.4 Build the binary
@@ -103,11 +114,14 @@ This does two things:
 2. **Writes two files** into the current directory:
 
    - **`loremaster.json`** — project-local config. Committed alongside your
-     prose so collaborators share settings.
+     prose so collaborators share settings. When `db_url` and `ollama_url` are
+     present, no environment variables are needed to run loremaster commands.
 
      ```json
      {
        "project": "my-novel",
+       "db_url": "postgres://loremaster:loremaster@localhost:5432/loremaster?sslmode=disable",
+       "ollama_url": "http://localhost:11434",
        "embedding_model": "nomic-embed-text",
        "exclude": ["drafts/**", "**/.obsidian/**"]
      }
@@ -216,35 +230,52 @@ six Loremaster tools (`semantic_search`, `keyword_search`, `hybrid_search`,
 Configuration is resolved with this priority (highest wins):
 
 ```
---flag  >  LOREMASTER_* env var  >  loremaster.json  >  built-in default
+--flag  >  loremaster.json  >  LOREMASTER_* env var  >  built-in default
 ```
 
-### Environment variables
-
-| Variable                    | Type   | Default                          | Description                                              |
-|-----------------------------|--------|----------------------------------|----------------------------------------------------------|
-| `LOREMASTER_DATABASE_URL`   | string | (required)                       | PostgreSQL connection string.                            |
-| `LOREMASTER_OLLAMA_URL`     | string | `http://localhost:11434`         | Base URL of the Ollama server.                           |
-| `LOREMASTER_EMBEDDING_MODEL`| string | `nomic-embed-text`               | Embedding model name (must produce 768-dim vectors).     |
-| `LOREMASTER_PROJECT`        | string | (from `loremaster.json`)         | Active project slug.                                     |
-| `LOREMASTER_LOG_LEVEL`      | string | `info`                           | Log verbosity (`debug`/`info`/`warn`/`error`). To stderr.|
+`loremaster.json` overrides environment variables, which allows a project
+directory to be fully self-contained — no environment variables needed once
+the file has `db_url` and `ollama_url` set.
 
 ### `loremaster.json` fields
 
-| Field             | Type            | Default            | Description                                                        |
-|-------------------|-----------------|--------------------|--------------------------------------------------------------------|
-| `project`         | string          | (none)             | Project slug this directory belongs to.                            |
-| `embedding_model` | string          | `nomic-embed-text` | Per-project model override.                                        |
-| `exclude`         | array of globs  | `[]`               | Path globs to skip during `index` (e.g. `drafts/**`).              |
+| Field             | Type            | Default                  | Description                                               |
+|-------------------|-----------------|--------------------------|-----------------------------------------------------------|
+| `project`         | string          | (none)                   | Project slug this directory belongs to.                   |
+| `db_url`          | string          | (from env or flag)       | PostgreSQL connection string. Overrides `LOREMASTER_DB_URL`. |
+| `ollama_url`      | string          | `http://localhost:11434` | Ollama base URL. Overrides `LOREMASTER_OLLAMA_URL`.       |
+| `embedding_model` | string          | `nomic-embed-text`       | Per-project model override.                               |
+| `exclude`         | array of globs  | `[]`                     | Path globs to skip during `index` (e.g. `drafts/**`).    |
+
+Example `loremaster.json` with all connection fields:
+```json
+{
+  "project": "my-novel",
+  "db_url": "postgres://loremaster:loremaster@localhost:5432/loremaster?sslmode=disable",
+  "ollama_url": "http://localhost:11434",
+  "embedding_model": "nomic-embed-text",
+  "exclude": ["drafts/**", "**/.obsidian/**"]
+}
+```
+
+### Environment variables (global fallback)
+
+| Variable                  | Type   | Default                  | Description                                          |
+|---------------------------|--------|--------------------------|------------------------------------------------------|
+| `LOREMASTER_DB_URL`       | string | (required if not in JSON)| PostgreSQL connection string.                        |
+| `LOREMASTER_OLLAMA_URL`   | string | `http://localhost:11434` | Base URL of the Ollama server.                       |
+| `LOREMASTER_OLLAMA_MODEL` | string | `nomic-embed-text`       | Embedding model name (must produce 768-dim vectors). |
+| `LOREMASTER_PROJECT`      | string | (from `loremaster.json`) | Active project slug.                                 |
+| `LOREMASTER_EMBED_DIMS`   | string | `768`                    | Embedding dimensions.                                |
 
 ### Common flags
 
-| Flag                | Applies to       | Description                                  |
-|---------------------|------------------|----------------------------------------------|
-| `--project <slug>`  | most commands    | Override the active project.                 |
-| `--limit <n>`       | `search`         | Max results to return.                       |
-| `--mode <m>`        | `search`         | `semantic` \| `keyword` \| `hybrid`.         |
-| `--database-url`    | all              | Override `LOREMASTER_DATABASE_URL`.          |
+| Flag              | Applies to    | Description                          |
+|-------------------|---------------|--------------------------------------|
+| `--project <slug>`| most commands | Override the active project.         |
+| `--limit <n>`     | `search`      | Max results to return.               |
+| `--db-url`        | all           | Override DB URL (highest priority).  |
+| `--ollama-url`    | all           | Override Ollama URL (highest priority).|
 
 ---
 

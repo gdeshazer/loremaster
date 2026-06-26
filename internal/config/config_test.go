@@ -105,11 +105,33 @@ func TestLoad_excludeGlobs(t *testing.T) {
 	}
 }
 
+func TestLoad_connectionURLs(t *testing.T) {
+	dir := t.TempDir()
+	writeJSON(t, dir, `{
+		"project": "test",
+		"db_url": "postgres://user:pass@localhost:5432/db?sslmode=disable",
+		"ollama_url": "http://localhost:11434"
+	}`)
+
+	cfg, err := Load(dir)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cfg.DBURL != "postgres://user:pass@localhost:5432/db?sslmode=disable" {
+		t.Errorf("db_url: got %q", cfg.DBURL)
+	}
+	if cfg.OllamaURL != "http://localhost:11434" {
+		t.Errorf("ollama_url: got %q", cfg.OllamaURL)
+	}
+}
+
 func TestWrite_roundtrip(t *testing.T) {
 	dir := t.TempDir()
 	original := &ProjectConfig{
 		Project:        "my-novel",
 		EmbeddingModel: "nomic-embed-text",
+		DBURL:          "postgres://user:pass@localhost:5432/loremaster?sslmode=disable",
+		OllamaURL:      "http://localhost:11434",
 		Exclude:        []string{"drafts/**"},
 	}
 	if err := Write(dir, original); err != nil {
@@ -125,6 +147,12 @@ func TestWrite_roundtrip(t *testing.T) {
 	}
 	if loaded.EmbeddingModel != original.EmbeddingModel {
 		t.Errorf("model mismatch: got %q", loaded.EmbeddingModel)
+	}
+	if loaded.DBURL != original.DBURL {
+		t.Errorf("db_url mismatch: got %q", loaded.DBURL)
+	}
+	if loaded.OllamaURL != original.OllamaURL {
+		t.Errorf("ollama_url mismatch: got %q", loaded.OllamaURL)
 	}
 	if len(loaded.Exclude) != 1 || loaded.Exclude[0] != "drafts/**" {
 		t.Errorf("exclude mismatch: got %v", loaded.Exclude)

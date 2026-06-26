@@ -21,9 +21,14 @@ var initCmd = &cobra.Command{
 	Long: `Creates a project record in the database and writes three files into
 the current directory:
 
-  loremaster.json   Project-local config (slug, embedding model, exclude globs).
-                    Loremaster walks up the directory tree to find this file,
-                    similar to how git finds .git.
+  loremaster.json   Project-local config. Loremaster walks up the directory
+                    tree to find this file (like git finding .git), so commands
+                    work from any subdirectory. Fields include:
+                      project          — project slug
+                      db_url           — PostgreSQL URL (overrides env var)
+                      ollama_url       — Ollama base URL (overrides env var)
+                      embedding_model  — per-project model override
+                      exclude          — glob patterns to skip during indexing
 
   mcp.json          Ready-to-use MCP server config block. Add its contents to
                     your Claude Code or Claude Desktop MCP settings to expose
@@ -34,9 +39,16 @@ the current directory:
                     Appended to an existing CLAUDE.md if one already exists.
 
 The project slug defaults to the current directory name and must be unique
-across all loremaster projects in the database.`,
+across all loremaster projects in the database.
+
+Pass --db-url or --ollama-url explicitly to embed those values in loremaster.json,
+allowing the project to run without environment variables being set.`,
 	Example: `  # Initialize with defaults (slug = current directory name)
   cd ~/stories/my-novel && loremaster init
+
+  # Embed connection URLs in loremaster.json (no env vars needed afterward)
+  loremaster init --db-url "postgres://user:pass@localhost:5432/loremaster?sslmode=disable" \
+                  --ollama-url "http://localhost:11434"
 
   # Specify slug, name, and description explicitly
   loremaster init --slug my-novel --name "My Novel" --description "A dark fantasy epic"`,
@@ -85,6 +97,15 @@ across all loremaster projects in the database.`,
 		cfg := &config.ProjectConfig{
 			Project:        slug,
 			EmbeddingModel: viper.GetString("ollama_model"),
+		}
+		// Embed connection URLs only when the flag was explicitly provided,
+		// so we don't bake env-var values into the committed config file.
+		rootFlags := cmd.Root().PersistentFlags()
+		if rootFlags.Changed("db-url") {
+			cfg.DBURL = viper.GetString("db_url")
+		}
+		if rootFlags.Changed("ollama-url") {
+			cfg.OllamaURL = viper.GetString("ollama_url")
 		}
 		if err := config.Write(cwd, cfg); err != nil {
 			return fmt.Errorf("writing loremaster.json: %w", err)

@@ -1,7 +1,6 @@
 // Package config loads project-local settings from loremaster.json.
 // It walks up from the current working directory looking for the file,
-// mirroring how git finds .git. Global settings (DB URL, Ollama URL)
-// live in env vars / viper and are not handled here.
+// mirroring how git finds .git.
 package config
 
 import (
@@ -20,6 +19,10 @@ type ProjectConfig struct {
 	Project string `json:"project"`
 	// EmbeddingModel overrides the global default Ollama model for this project.
 	EmbeddingModel string `json:"embedding_model,omitempty"`
+	// DBURL overrides the LOREMASTER_DB_URL env var when set.
+	DBURL string `json:"db_url,omitempty"`
+	// OllamaURL overrides the LOREMASTER_OLLAMA_URL env var when set.
+	OllamaURL string `json:"ollama_url,omitempty"`
 	// Exclude is a list of glob patterns (relative to the project root) to skip during indexing.
 	Exclude []string `json:"exclude,omitempty"`
 

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/gdeshazer/loremaster/internal/config"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -20,27 +21,49 @@ Quick start:
        podman compose up -d
        podman exec <ollama-container> ollama pull nomic-embed-text
 
-  2. Set required environment variables (or copy .env.example to .env):
-       export LOREMASTER_DB_URL="postgres://loremaster:loremaster@localhost:5432/loremaster?sslmode=disable"
-       export LOREMASTER_OLLAMA_URL="http://localhost:11434"
-
-  3. Initialize a project in your story directory:
+  2. Initialize a project in your story directory (set db_url and ollama_url
+     in loremaster.json, or export them as env vars beforehand):
        cd ~/my-story && loremaster init
 
-  4. Index your markdown files:
+  3. Index your markdown files:
        loremaster index .
 
-  5. Search from the CLI:
+  4. Search from the CLI:
        loremaster search "how does the magic system work"
 
-  6. Add mcp.json to Claude Code MCP settings to search from Claude.
+  5. Add mcp.json to Claude Code MCP settings to search from Claude.
 
-Environment variables:
-  LOREMASTER_DB_URL        PostgreSQL connection string (required)
+Configuration priority (highest wins):
+  --flag  >  loremaster.json  >  LOREMASTER_* env var  >  built-in default
+
+loremaster.json fields (project-local, overrides env vars):
+  db_url           PostgreSQL connection string
+  ollama_url       Ollama base URL
+  ollama_model     Embedding model name (field: embedding_model)
+  project          Project slug
+
+Environment variables (global fallback):
+  LOREMASTER_DB_URL        PostgreSQL connection string (required if not in loremaster.json)
   LOREMASTER_OLLAMA_URL    Ollama base URL (default: http://localhost:11434)
   LOREMASTER_OLLAMA_MODEL  Embedding model name (default: nomic-embed-text)
   LOREMASTER_EMBED_DIMS    Embedding dimensions (default: 768)
   LOREMASTER_PROJECT       Project slug (overridden by --project flag)`,
+
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		cfg, err := config.Load("")
+		if err != nil {
+			return nil // loremaster.json is optional
+		}
+		flags := cmd.Root().PersistentFlags()
+		// Config file values override env vars but not explicit flags.
+		if cfg.DBURL != "" && !flags.Changed("db-url") {
+			viper.Set("db_url", cfg.DBURL)
+		}
+		if cfg.OllamaURL != "" && !flags.Changed("ollama-url") {
+			viper.Set("ollama_url", cfg.OllamaURL)
+		}
+		return nil
+	},
 }
 
 func Execute() {
